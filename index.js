@@ -11,10 +11,11 @@
     drawing: null,
     color: "#ffcb00",
     thickness: 2,
-    dragging: null,
-    allowDraw: true
+    allowDraw: true,
+    showLines: true
   };
 
+  // Canvas setup
   const canvas = document.createElement("canvas");
   Object.assign(canvas.style, {
     position: "fixed",
@@ -26,6 +27,7 @@
   const ctx = canvas.getContext("2d");
   document.body.appendChild(canvas);
 
+  // Panel setup
   const panel = document.createElement("div");
   Object.assign(panel.style, {
     position: "fixed",
@@ -37,23 +39,23 @@
     borderRadius: "10px",
     font: "13px system-ui",
     zIndex: "1000000",
-    minWidth: "180px",
-    maxHeight: "340px",
-    overflowY: "auto",
-    pointerEvents: "auto" // ensure panel is always clickable
+    minWidth: "190px",
+    pointerEvents: "auto"
   });
   panel.innerHTML = `
     <b>Distance Tool</b><br><br>
     Color: <input type="color" id="dtColor" value="${state.color}"><br>
     Thickness: <input type="range" id="dtThick" min="1" max="10" value="${state.thickness}"><br>
-    <button id="dtToggle" style="margin-top:6px;width:100%;background:#333;color:#fff;border:none;padding:4px;border-radius:4px;">✏️ Drawing: ON</button>
+    <button id="dtToggleDraw" style="margin-top:6px;width:100%;background:#333;color:#fff;border:none;padding:4px;border-radius:4px;">✏️ Drawing: ON</button>
+    <button id="dtToggleVis" style="margin-top:6px;width:100%;background:#333;color:#fff;border:none;padding:4px;border-radius:4px;">👁 Show Lines: ON</button>
     <div id="dtList" style="margin-top:8px;"></div>
     <button id="dtClear" style="margin-top:8px;width:100%">Clear All</button>
   `;
   document.body.appendChild(panel);
 
   const listDiv = panel.querySelector("#dtList");
-  const toggleBtn = panel.querySelector("#dtToggle");
+  const drawBtn = panel.querySelector("#dtToggleDraw");
+  const visBtn = panel.querySelector("#dtToggleVis");
 
   function resize() {
     canvas.width = innerWidth;
@@ -71,10 +73,11 @@
 
   function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    if (!state.showLines) return; // hide all drawings if toggled off
     ctx.font = "12px monospace";
     ctx.lineJoin = "round";
 
-    // draw saved lines
+    // Draw existing lines
     for (let l of state.lines) {
       ctx.strokeStyle = l.color;
       ctx.lineWidth = l.thickness;
@@ -91,7 +94,7 @@
       ctx.fillText(`${ang}°`, midX+5, midY+10);
     }
 
-    // draw active (dotted) line
+    // Active drawing preview
     if (state.drawing) {
       const {start,end,color,thickness}=state.drawing;
       ctx.strokeStyle = color;
@@ -123,8 +126,7 @@
 
   // ───────────────────────────────
   canvas.addEventListener("click", e => {
-    if (!state.allowDraw) return; // no drawing when off
-
+    if (!state.allowDraw) return;
     const pos = {x:e.clientX, y:e.clientY};
     if (!state.drawing) {
       state.drawing = { start: pos, end: pos, color: state.color, thickness: state.thickness };
@@ -158,14 +160,26 @@
     }
     if (e.target.id === "dtClear") {
       state.lines.length = 0;
+      state.drawing = null;
       updateList();
       draw();
     }
-    if (e.target.id === "dtToggle") {
+
+    if (e.target.id === "dtToggleDraw") {
       state.allowDraw = !state.allowDraw;
-      toggleBtn.textContent = state.allowDraw ? "✏️ Drawing: ON" : "🚫 Drawing: OFF";
-      toggleBtn.style.background = state.allowDraw ? "#333" : "#900";
+      if (!state.allowDraw && state.drawing) state.drawing = null;
+      drawBtn.textContent = state.allowDraw ? "✏️ Drawing: ON" : "🚫 Drawing: OFF";
+      drawBtn.style.background = state.allowDraw ? "#333" : "#900";
+      // let clicks through when drawing off
       canvas.style.pointerEvents = state.allowDraw ? "auto" : "none";
+      draw();
+    }
+
+    if (e.target.id === "dtToggleVis") {
+      state.showLines = !state.showLines;
+      visBtn.textContent = state.showLines ? "👁 Show Lines: ON" : "🙈 Show Lines: OFF";
+      visBtn.style.background = state.showLines ? "#333" : "#555";
+      draw();
     }
   });
 
@@ -188,5 +202,5 @@
   };
   window.__distanceTool = tool;
 
-  console.log("🟢 Distance tool activated — toggle drawing mode to click through page, ESC to remove.");
+  console.log("🟢 Distance tool active — toggle drawing ON/OFF and line visibility independently. ESC removes.");
 })();
