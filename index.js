@@ -2,7 +2,7 @@
   if (window.__distanceTool) {
     window.__distanceTool.destroy();
     delete window.__distanceTool;
-    console.log("Distance tool deactivated");
+    console.log("🟡 Distance tool deactivated");
     return;
   }
 
@@ -11,7 +11,8 @@
     drawing: null,
     color: "#ffcb00",
     thickness: 2,
-    dragging: null
+    dragging: null,
+    allowDraw: true
   };
 
   const canvas = document.createElement("canvas");
@@ -36,20 +37,22 @@
     borderRadius: "10px",
     font: "13px system-ui",
     zIndex: "1000000",
-    minWidth: "160px",
-    maxHeight: "300px",
+    minWidth: "180px",
+    maxHeight: "340px",
     overflowY: "auto"
   });
   panel.innerHTML = `
     <b>Distance Tool</b><br><br>
     Color: <input type="color" id="dtColor" value="${state.color}"><br>
     Thickness: <input type="range" id="dtThick" min="1" max="10" value="${state.thickness}"><br>
-    <div id="dtList" style="margin-top:6px;"></div>
+    <button id="dtToggle" style="margin-top:6px;width:100%;background:#333;color:#fff;border:none;padding:4px;border-radius:4px;">✏️ Drawing: ON</button>
+    <div id="dtList" style="margin-top:8px;"></div>
     <button id="dtClear" style="margin-top:8px;width:100%">Clear All</button>
   `;
   document.body.appendChild(panel);
 
   const listDiv = panel.querySelector("#dtList");
+  const toggleBtn = panel.querySelector("#dtToggle");
 
   function resize() {
     canvas.width = innerWidth;
@@ -121,7 +124,7 @@
   canvas.addEventListener("click", e => {
     const pos = {x:e.clientX, y:e.clientY};
 
-    // click midpoint → drag
+    // clicking midpoint → drag
     const hit = state.lines.find(l=>{
       const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
       return Math.hypot(pos.x-midX,pos.y-midY)<10;
@@ -130,6 +133,8 @@
       state.dragging = { line: hit, offset: pos };
       return;
     }
+
+    if (!state.allowDraw) return; // disabled drawing
 
     // click logic: start or end
     if (!state.drawing) {
@@ -170,7 +175,7 @@
     }
   });
 
-  // panel interactions
+  // ───────────────────────────────
   panel.addEventListener("input", e => {
     if (e.target.id === "dtColor") state.color = e.target.value;
     if (e.target.id === "dtThick") state.thickness = +e.target.value;
@@ -187,13 +192,18 @@
       updateList();
       draw();
     }
+    if (e.target.id === "dtToggle") {
+      state.allowDraw = !state.allowDraw;
+      toggleBtn.textContent = state.allowDraw ? "✏️ Drawing: ON" : "🚫 Drawing: OFF";
+      toggleBtn.style.background = state.allowDraw ? "#333" : "#900";
+    }
   });
 
   const keyHandler = e=>{
     if (e.key==="Escape") {
       tool.destroy();
       delete window.__distanceTool;
-      console.log("Distance tool deactivated");
+      console.log("🟡 Distance tool deactivated");
     }
   };
   addEventListener("keydown", keyHandler);
@@ -208,5 +218,5 @@
   };
   window.__distanceTool = tool;
 
-  console.log("Distance tool activated — click to start, click again to finish, shows distance & angle, drag midpoints, ESC to remove.");
+  console.log("🟢 Distance tool activated — click to start/finish lines, toggle drawing mode, drag midpoints, adjust via panel, ESC to remove.");
 })();
