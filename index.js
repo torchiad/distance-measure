@@ -2,7 +2,7 @@
   if (window.__distanceTool) {
     window.__distanceTool.destroy();
     delete window.__distanceTool;
-    console.log("🟡 Distance tool deactivated");
+    console.log("Distance tool deactivated");
     return;
   }
 
@@ -60,6 +60,10 @@
   resize();
 
   const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const angleDeg = (a,b)=>{
+    const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    return ((angle + 360) % 360).toFixed(1);
+  };
 
   function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -78,7 +82,9 @@
 
       const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
       const d = dist(l.start,l.end).toFixed(1);
+      const ang = angleDeg(l.start,l.end);
       ctx.fillText(`${d}px`, midX+5, midY-5);
+      ctx.fillText(`${ang}°`, midX+5, midY+10);
     }
 
     // draw active (dotted) line
@@ -94,8 +100,10 @@
       ctx.setLineDash([]);
       const midX=(start.x+end.x)/2, midY=(start.y+end.y)/2;
       const d = dist(start,end).toFixed(1);
+      const ang = angleDeg(start,end);
       ctx.fillStyle = color;
       ctx.fillText(`${d}px`, midX+5, midY-5);
+      ctx.fillText(`${ang}°`, midX+5, midY+10);
     }
   }
 
@@ -113,7 +121,7 @@
   canvas.addEventListener("click", e => {
     const pos = {x:e.clientX, y:e.clientY};
 
-    // If clicking near midpoint → drag start
+    // click midpoint → drag
     const hit = state.lines.find(l=>{
       const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
       return Math.hypot(pos.x-midX,pos.y-midY)<10;
@@ -123,11 +131,10 @@
       return;
     }
 
-    // start drawing
+    // click logic: start or end
     if (!state.drawing) {
       state.drawing = { start: pos, end: pos, color: state.color, thickness: state.thickness };
     } else {
-      // finalize line
       state.drawing.end = pos;
       state.lines.push(state.drawing);
       state.drawing = null;
@@ -163,7 +170,7 @@
     }
   });
 
-  // ───────────────────────────────
+  // panel interactions
   panel.addEventListener("input", e => {
     if (e.target.id === "dtColor") state.color = e.target.value;
     if (e.target.id === "dtThick") state.thickness = +e.target.value;
@@ -186,7 +193,7 @@
     if (e.key==="Escape") {
       tool.destroy();
       delete window.__distanceTool;
-      console.log("🟡 Distance tool deactivated");
+      console.log("Distance tool deactivated");
     }
   };
   addEventListener("keydown", keyHandler);
@@ -201,5 +208,5 @@
   };
   window.__distanceTool = tool;
 
-  console.log("🟢 Distance tool activated — click to start, click again to finish, drag midpoints, adjust via panel, ESC to remove.");
+  console.log("Distance tool activated — click to start, click again to finish, shows distance & angle, drag midpoints, ESC to remove.");
 })();
