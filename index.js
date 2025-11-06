@@ -39,7 +39,8 @@
     zIndex: "1000000",
     minWidth: "180px",
     maxHeight: "340px",
-    overflowY: "auto"
+    overflowY: "auto",
+    pointerEvents: "auto" // ensure panel is always clickable
   });
   panel.innerHTML = `
     <b>Distance Tool</b><br><br>
@@ -122,21 +123,9 @@
 
   // ───────────────────────────────
   canvas.addEventListener("click", e => {
+    if (!state.allowDraw) return; // no drawing when off
+
     const pos = {x:e.clientX, y:e.clientY};
-
-    // clicking midpoint → drag
-    const hit = state.lines.find(l=>{
-      const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
-      return Math.hypot(pos.x-midX,pos.y-midY)<10;
-    });
-    if (hit) {
-      state.dragging = { line: hit, offset: pos };
-      return;
-    }
-
-    if (!state.allowDraw) return; // disabled drawing
-
-    // click logic: start or end
     if (!state.drawing) {
       state.drawing = { start: pos, end: pos, color: state.color, thickness: state.thickness };
     } else {
@@ -149,28 +138,8 @@
   });
 
   canvas.addEventListener("mousemove", e => {
-    const pos = {x:e.clientX, y:e.clientY};
-
-    if (state.dragging) {
-      const { line, offset } = state.dragging;
-      const dx = pos.x - offset.x;
-      const dy = pos.y - offset.y;
-      line.start.x += dx; line.start.y += dy;
-      line.end.x += dx; line.end.y += dy;
-      state.dragging.offset = pos;
-      draw();
-      return;
-    }
-
     if (state.drawing) {
-      state.drawing.end = pos;
-      draw();
-    }
-  });
-
-  canvas.addEventListener("mouseup", e => {
-    if (state.dragging) {
-      state.dragging = null;
+      state.drawing.end = {x:e.clientX, y:e.clientY};
       draw();
     }
   });
@@ -196,6 +165,7 @@
       state.allowDraw = !state.allowDraw;
       toggleBtn.textContent = state.allowDraw ? "✏️ Drawing: ON" : "🚫 Drawing: OFF";
       toggleBtn.style.background = state.allowDraw ? "#333" : "#900";
+      canvas.style.pointerEvents = state.allowDraw ? "auto" : "none";
     }
   });
 
@@ -218,5 +188,5 @@
   };
   window.__distanceTool = tool;
 
-  console.log("🟢 Distance tool activated — click to start/finish lines, toggle drawing mode, drag midpoints, adjust via panel, ESC to remove.");
+  console.log("🟢 Distance tool activated — toggle drawing mode to click through page, ESC to remove.");
 })();
