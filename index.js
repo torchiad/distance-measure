@@ -1,0 +1,205 @@
+(() => {
+  if (window.__distanceTool) {
+    window.__distanceTool.destroy();
+    delete window.__distanceTool;
+    console.log("🟡 Distance tool deactivated");
+    return;
+  }
+
+  const state = {
+    lines: [],
+    drawing: null,
+    color: "#ffcb00",
+    thickness: 2,
+    dragging: null
+  };
+
+  const canvas = document.createElement("canvas");
+  Object.assign(canvas.style, {
+    position: "fixed",
+    inset: "0",
+    zIndex: "999999",
+    cursor: "crosshair",
+    pointerEvents: "auto"
+  });
+  const ctx = canvas.getContext("2d");
+  document.body.appendChild(canvas);
+
+  const panel = document.createElement("div");
+  Object.assign(panel.style, {
+    position: "fixed",
+    top: "12px",
+    left: "12px",
+    background: "rgba(0,0,0,0.8)",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    font: "13px system-ui",
+    zIndex: "1000000",
+    minWidth: "160px",
+    maxHeight: "300px",
+    overflowY: "auto"
+  });
+  panel.innerHTML = `
+    <b>Distance Tool</b><br><br>
+    Color: <input type="color" id="dtColor" value="${state.color}"><br>
+    Thickness: <input type="range" id="dtThick" min="1" max="10" value="${state.thickness}"><br>
+    <div id="dtList" style="margin-top:6px;"></div>
+    <button id="dtClear" style="margin-top:8px;width:100%">Clear All</button>
+  `;
+  document.body.appendChild(panel);
+
+  const listDiv = panel.querySelector("#dtList");
+
+  function resize() {
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+    draw();
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.font = "12px monospace";
+    ctx.lineJoin = "round";
+
+    // draw saved lines
+    for (let l of state.lines) {
+      ctx.strokeStyle = l.color;
+      ctx.lineWidth = l.thickness;
+      ctx.fillStyle = l.color;
+      ctx.beginPath();
+      ctx.moveTo(l.start.x, l.start.y);
+      ctx.lineTo(l.end.x, l.end.y);
+      ctx.stroke();
+
+      const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
+      const d = dist(l.start,l.end).toFixed(1);
+      ctx.fillText(`${d}px`, midX+5, midY-5);
+    }
+
+    // draw active (dotted) line
+    if (state.drawing) {
+      const {start,end,color,thickness}=state.drawing;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = thickness;
+      ctx.setLineDash([5,5]);
+      ctx.beginPath();
+      ctx.moveTo(start.x,start.y);
+      ctx.lineTo(end.x,end.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const midX=(start.x+end.x)/2, midY=(start.y+end.y)/2;
+      const d = dist(start,end).toFixed(1);
+      ctx.fillStyle = color;
+      ctx.fillText(`${d}px`, midX+5, midY-5);
+    }
+  }
+
+  function updateList() {
+    listDiv.innerHTML = state.lines.map((l,i)=>
+      `<div style="margin-bottom:4px;">
+         <span style="color:${l.color}">Line ${i+1}</span>
+         <button data-del="${i}" style="float:right;">🗑</button>
+         <div style="clear:both;"></div>
+       </div>`
+    ).join("");
+  }
+
+  // ───────────────────────────────
+  canvas.addEventListener("click", e => {
+    const pos = {x:e.clientX, y:e.clientY};
+
+    // If clicking near midpoint → drag start
+    const hit = state.lines.find(l=>{
+      const midX=(l.start.x+l.end.x)/2, midY=(l.start.y+l.end.y)/2;
+      return Math.hypot(pos.x-midX,pos.y-midY)<10;
+    });
+    if (hit) {
+      state.dragging = { line: hit, offset: pos };
+      return;
+    }
+
+    // start drawing
+    if (!state.drawing) {
+      state.drawing = { start: pos, end: pos, color: state.color, thickness: state.thickness };
+    } else {
+      // finalize line
+      state.drawing.end = pos;
+      state.lines.push(state.drawing);
+      state.drawing = null;
+      updateList();
+      draw();
+    }
+  });
+
+  canvas.addEventListener("mousemove", e => {
+    const pos = {x:e.clientX, y:e.clientY};
+
+    if (state.dragging) {
+      const { line, offset } = state.dragging;
+      const dx = pos.x - offset.x;
+      const dy = pos.y - offset.y;
+      line.start.x += dx; line.start.y += dy;
+      line.end.x += dx; line.end.y += dy;
+      state.dragging.offset = pos;
+      draw();
+      return;
+    }
+
+    if (state.drawing) {
+      state.drawing.end = pos;
+      draw();
+    }
+  });
+
+  canvas.addEventListener("mouseup", e => {
+    if (state.dragging) {
+      state.dragging = null;
+      draw();
+    }
+  });
+
+  // ───────────────────────────────
+  panel.addEventListener("input", e => {
+    if (e.target.id === "dtColor") state.color = e.target.value;
+    if (e.target.id === "dtThick") state.thickness = +e.target.value;
+  });
+
+  panel.addEventListener("click", e => {
+    if (e.target.dataset.del) {
+      state.lines.splice(+e.target.dataset.del,1);
+      updateList();
+      draw();
+    }
+    if (e.target.id === "dtClear") {
+      state.lines.length = 0;
+      updateList();
+      draw();
+    }
+  });
+
+  const keyHandler = e=>{
+    if (e.key==="Escape") {
+      tool.destroy();
+      delete window.__distanceTool;
+      console.log("🟡 Distance tool deactivated");
+    }
+  };
+  addEventListener("keydown", keyHandler);
+
+  const tool = {
+    destroy() {
+      canvas.remove();
+      panel.remove();
+      removeEventListener("resize", resize);
+      removeEventListener("keydown", keyHandler);
+    }
+  };
+  window.__distanceTool = tool;
+
+  console.log("🟢 Distance tool activated — click to start, click again to finish, drag midpoints, adjust via panel, ESC to remove.");
+})();
